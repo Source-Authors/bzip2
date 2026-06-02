@@ -1,0 +1,54 @@
+name: Makefile CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations. Consider changing this to true when your workflow is stable.
+      fail-fast: false
+
+      # Set up a matrix to run the following 3 configurations:
+      # 1. <Windows, Release, latest MSVC compiler toolchain on the default runner image, default generator>
+      # 2. <Linux, Release, latest GCC compiler toolchain on the default runner image, default generator>
+      # 3. <Linux, Release, latest Clang compiler toolchain on the default runner image, default generator>
+      #
+      # To add more build types (Release, Debug, RelWithDebInfo, etc.) customize the build_type list.
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        build_type: [Release]
+        arch: [x86, x64]
+        include:
+          - os: windows-latest
+            cpp_compiler: cl
+          - os: ubuntu-latest
+            cpp_compiler: g++
+          - os: ubuntu-latest
+            cpp_compiler: clang++
+          - os: macos-latest
+            cpp_compiler: clang++
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Build & test
+      if: matrix.os != 'windows-latest'
+      run: make
+
+    - name: Add ${{matrix.arch}} cmake / nmake to PATH
+      if: matrix.os == 'windows-latest'
+      uses: Source-Authors/msvc-dev-cmd@v2
+      with:
+        arch: ${{matrix.arch}}
+
+    - name: Build & test ${{matrix.arch}}
+      if: matrix.os == 'windows-latest'
+      run: >
+        nmake -f makefile.msc
+
